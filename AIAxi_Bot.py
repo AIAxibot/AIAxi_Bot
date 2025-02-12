@@ -1,8 +1,9 @@
 import os
 import logging
 import openai
-from aiogram import Bot, Dispatcher, types
-from aiogram.utils import executor
+from aiogram import Bot, Dispatcher
+from aiogram.types import Message
+import asyncio
 
 # Загружаем переменные API
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -14,11 +15,11 @@ openai.api_key = OPENAI_API_KEY
 # Настройка бота
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TELEGRAM_TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher()
 
 # Обработчик сообщений
-@dp.message_handler()
-async def chatgpt_reply(message: types.Message):
+@dp.message()
+async def chatgpt_reply(message: Message):
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
@@ -29,8 +30,12 @@ async def chatgpt_reply(message: types.Message):
         reply = "Ошибка при обработке запроса."
         logging.error(f"Ошибка OpenAI: {e}")
 
-    await message.reply(reply)
+    await message.answer(reply)
 
 # Запуск бота
+async def main():
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
+    
