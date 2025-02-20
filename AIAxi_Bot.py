@@ -1,41 +1,40 @@
 import os
 import logging
 import openai
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils import executor
 
-# Загружаем переменные API
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# Устанавливаем API-ключ OpenAI
-openai.api_key = OPENAI_API_KEY
-
-# Настройка бота
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
+
+# Инициализация бота и диспетчера
+TELEGRAM_TOKEN = 'YOUR_TELEGRAM_TOKEN'
+OPENROUTER_API_KEY = 'YOUR_OPENROUTER_API_KEY'
 bot = Bot(token=TELEGRAM_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(bot)
 
-# Обработчик сообщений
-@dp.message()
-async def chatgpt_reply(message: Message):
+# Настройка OpenAI
+openai.api_key = OPENROUTER_API_KEY
+openai.api_base = "https://openrouter.ai/api/v1"
+
+# Обработчик команды /start
+@dp.message_handler(commands=['start'])
+async def send_welcome(message: types.Message):
+    await message.reply("Привет! Я бот, подключенный к нейросети через OpenRouter. Задай мне вопрос!")
+
+# Обработчик текстовых сообщений
+@dp.message_handler()
+async def handle_message(message: types.Message):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": message.text}]
+        response = openai.Completion.create(
+            model="gpt-3.5-turbo",
+            prompt=message.text,
+            max_tokens=150
         )
-        reply = response["choices"][0]["message"]["content"]
+        await message.reply(response.choices[0].text.strip())
     except Exception as e:
-        reply = "Ошибка при обработке запроса."
-        logging.error(f"Ошибка OpenAI: {e}")
+        logging.error(f"Ошибка при обращении к OpenAI: {e}")
+        await message.reply("Произошла ошибка при обработке вашего запроса.")
 
-    await message.answer(reply)
-
-# Запуск бота
-async def main():
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-    
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
